@@ -34,7 +34,7 @@ export default function PostsPage() {
         </div>
         <div className="text-center py-12">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
-          <p className="mt-4 text-muted-foreground">Loading posts...</p>
+          <p className="mt-4 ">Loading posts...</p>
         </div>
       </div>
     );
@@ -70,7 +70,7 @@ export default function PostsPage() {
           </Link>
         </div>
         <div className="text-center py-12">
-          <p className="text-muted-foreground">No posts found.</p>
+          <p className="">No posts found.</p>
         </div>
       </div>
     );
@@ -89,7 +89,7 @@ export default function PostsPage() {
 
       <div className="mb-12 text-center">
         <h1 className="text-4xl font-bold tracking-tight mb-2">All Posts</h1>
-        <p className="text-muted-foreground">
+        <p className="">
           {filteredPosts.length} post{filteredPosts.length !== 1 ? 's' : ''} {activeCategory !== 'All' ? `in ${activeCategory}` : 'total'}
         </p>
       </div>
@@ -104,7 +104,7 @@ export default function PostsPage() {
               className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
                 activeCategory === category
                   ? 'bg-background text-foreground shadow-sm'
-                  : 'text-muted-foreground hover:text-foreground'
+                  : ' hover:text-foreground'
               }`}
             >
               {category}
@@ -115,7 +115,7 @@ export default function PostsPage() {
 
       {filteredPosts.length === 0 ? (
         <div className="text-center py-12">
-          <p className="text-muted-foreground">No posts found for this category.</p>
+          <p className="">No posts found for this category.</p>
         </div>
       ) : (
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
@@ -139,9 +139,9 @@ export default function PostsPage() {
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <p className="text-muted-foreground line-clamp-3 mb-4">{post.excerpt}</p>
+                    <p className=" line-clamp-3 mb-4">{post.excerpt}</p>
                     <div className="flex items-center justify-between text-xs">
-                      <time dateTime={post.date_published} className="text-muted-foreground">
+                      <time dateTime={post.date_published} className="">
                         {new Date(post.date_published).toLocaleDateString()}
                       </time>
                       <span className="rounded-full bg-muted px-3 py-1.5 font-medium">

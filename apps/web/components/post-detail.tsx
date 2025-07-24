@@ -4,7 +4,7 @@ import { usePost } from "@/lib/hooks"
 import { Card, CardContent, CardHeader, CardTitle } from "@workspace/ui/components/card"
 import { Badge } from "@workspace/ui/components/badge"
 import { Button } from "@workspace/ui/components/button"
-import { CalendarDays, User, ArrowLeft } from "lucide-react"
+import { CalendarDays, ArrowLeft } from "lucide-react"
 import Image from "next/image"
 import Link from "next/link"
 
@@ -72,15 +72,11 @@ export default function PostDetail({ slug }: PostDetailProps) {
         <CardHeader className="space-y-4">
           <div className="space-y-2">
             <CardTitle className="text-3xl">{post.title}</CardTitle>
-            <p className="text-lg text-muted-foreground">{post.excerpt}</p>
+            <p className="text-lg ">{post.excerpt}</p>
           </div>
           
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4 text-sm text-muted-foreground">
-              <div className="flex items-center gap-1">
-                <User className="h-4 w-4" />
-                {post.author}
-              </div>
+            <div className="flex items-center gap-4 text-sm ">
               <div className="flex items-center gap-1">
                 <CalendarDays className="h-4 w-4" />
                 {new Date(post.date_published).toLocaleDateString()}

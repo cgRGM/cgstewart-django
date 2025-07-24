@@ -24,7 +24,7 @@ export default function ProjectsPage() {
         </div>
         <div className="text-center py-12">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
-          <p className="mt-4 text-muted-foreground">Loading projects...</p>
+          <p className="mt-4 ">Loading projects...</p>
         </div>
       </div>
     );
@@ -64,7 +64,7 @@ export default function ProjectsPage() {
             <CardTitle className="text-4xl font-semibold tracking-tight sm:text-5xl">
               I like to showcase my work here
             </CardTitle>
-            <p className="mt-2 text-lg text-muted-foreground">View my development projects and creations</p>
+            <p className="mt-2 text-lg ">View my development projects and creations</p>
           </CardHeader>
           <CardContent>
             <div className="text-center py-10">No projects available at the moment.</div>
@@ -87,7 +87,7 @@ export default function ProjectsPage() {
 
       <div className="mb-12 text-center">
         <h1 className="text-4xl font-bold tracking-tight mb-2">All Projects</h1>
-        <p className="text-muted-foreground">
+        <p className="">
           {projects.length} project{projects.length !== 1 ? 's' : ''} total
         </p>
       </div>
@@ -113,7 +113,7 @@ export default function ProjectsPage() {
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <p className="text-muted-foreground line-clamp-3 mb-4">{project.description}</p>
+                  <p className=" line-clamp-3 mb-4">{project.description}</p>
                   
                   {/* Tech Stack */}
                   <div className="flex flex-wrap gap-1 mb-4">
@@ -126,7 +126,7 @@ export default function ProjectsPage() {
                       </span>
                     ))}
                     {project.stack_list.length > 3 && (
-                      <span className="inline-block bg-muted text-muted-foreground px-2 py-1 rounded-full text-xs">
+                      <span className="inline-block bg-muted  px-2 py-1 rounded-full text-xs">
                         +{project.stack_list.length - 3} more
                       </span>
                     )}

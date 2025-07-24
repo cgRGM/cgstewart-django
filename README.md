@@ -224,7 +224,7 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 
 This template is for creating a monorepo with shadcn/ui.
 
-## Usage
+gv## Usage
 
 ```bash
 pnpm dlx shadcn@latest init

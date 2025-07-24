@@ -51,7 +51,7 @@ export default function ProjectsList() {
     return (
       <Card>
         <CardContent className="p-6">
-          <p className="text-muted-foreground">No projects found.</p>
+          <p className="">No projects found.</p>
         </CardContent>
       </Card>
     );

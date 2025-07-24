@@ -86,7 +86,7 @@ export default async function PostPage({ params }: PostPageProps) {
           <h1 className="text-4xl font-bold tracking-tight text-foreground sm:text-5xl mb-4">
             {post.title}
           </h1>
-          <div className="text-muted-foreground text-sm">
+          <div className=" text-sm">
             <span>Published on {new Date(post.date_published).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</span>
             {post.author_name && <span> by {post.author_name}</span>}
           </div>

@@ -34,7 +34,7 @@ export default function PostsList() {
   if (!posts || posts.length === 0) {
     return (
       <div className="text-center py-10">
-        <p className="text-muted-foreground">No posts available at the moment.</p>
+        <p className="">No posts available at the moment.</p>
       </div>
     );
   }
@@ -74,22 +74,11 @@ export default function PostsList() {
                     {post.title}
                   </Link>
                 </h3>
-                <p className="mt-5 line-clamp-3 text-sm leading-6 text-muted-foreground">
+                <p className="mt-5 line-clamp-3 text-sm leading-6 ">
                   {post.excerpt}
                 </p>
               </div>
-              <div className="relative mt-8 flex items-center gap-x-4">
-                <div className="h-10 w-10 rounded-full bg-gray-100 flex items-center justify-center">
-                  <span className="text-sm font-medium text-gray-600">
-                    {post.author_name ? post.author_name.charAt(0).toUpperCase() : 'A'}
-                  </span>
-                </div>
-                <div className="text-sm leading-6">
-                  <p className="font-semibold text-foreground">
-                    {post.author_name || 'Author'}
-                  </p>
-                </div>
-              </div>
+
             </div>
           </article>
         </AnimatedElement>

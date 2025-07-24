@@ -40,7 +40,7 @@ export default function VideosPage() {
         </div>
         <div className="text-center py-12">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
-          <p className="mt-4 text-muted-foreground">Loading videos...</p>
+          <p className="mt-4 ">Loading videos...</p>
         </div>
       </div>
     );
@@ -76,7 +76,7 @@ export default function VideosPage() {
           </Link>
         </div>
         <div className="text-center py-12">
-          <p className="text-muted-foreground">No videos found.</p>
+          <p className="">No videos found.</p>
         </div>
       </div>
     );
@@ -95,7 +95,7 @@ export default function VideosPage() {
 
       <div className="mb-8">
         <h1 className="text-4xl font-bold tracking-tight">All Videos</h1>
-        <p className="text-muted-foreground mt-2">
+        <p className=" mt-2">
           {videos.length} video{videos.length !== 1 ? 's' : ''} found
         </p>
       </div>
@@ -136,7 +136,7 @@ export default function VideosPage() {
                 </CardHeader>
                 {video.description && (
                   <CardContent>
-                    <p className="text-muted-foreground line-clamp-3">{video.description}</p>
+                    <p className=" line-clamp-3">{video.description}</p>
                   </CardContent>
                 )}
               </Link>

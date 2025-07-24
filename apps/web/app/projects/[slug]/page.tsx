@@ -124,7 +124,7 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
         )}
 
         <div className="prose prose-lg dark:prose-invert max-w-none">
-          <p className="lead mb-6 text-xl text-muted-foreground">
+          <p className="lead mb-6 text-xl ">
             {project.description}
           </p>
           <h3 className="text-2xl font-semibold mt-8 mb-4">Tech Stack</h3>

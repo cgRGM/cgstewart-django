@@ -1,6 +1,7 @@
 import Bio from "@/components/bio";
 import PostsList from "@/components/posts-list";
 import ProjectsList from "@/components/projects-list";
+import VideosList from "@/components/videos-list";
 import { Button } from "@workspace/ui/components/button";
 import {
   Card,
@@ -49,13 +50,27 @@ export default function Page() {
             </div>
             <ProjectsList />
           </section>
+
+          {/* Featured Videos Section */}
+          <section className="space-y-8">
+            <div className="flex items-center justify-between">
+              <h2 className="text-3xl font-bold">
+                I like to build in public here
+              </h2>
+
+              <Button asChild variant="outline">
+                <Link href="/videos">View All Videos</Link>
+              </Button>
+            </div>
+            <VideosList limit={6} />
+          </section>
         </div>
       </main>
 
       {/* Footer */}
       <footer className="border-t mt-16">
         <div className="container mx-auto px-4 py-8">
-          <div className="text-center text-muted-foreground">
+          <div className="text-center ">
             <p>
               &copy; {new Date().getFullYear()} CG Stewart. All rights reserved.
             </p>
