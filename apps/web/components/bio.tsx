@@ -80,7 +80,7 @@ export default function Bio() {
       </CardHeader>
       <CardContent className="space-y-6">
         <div>
-          <p className="text-muted-foreground leading-relaxed">{bio.about}</p>
+          <p className=" leading-relaxed">{bio.about}</p>
         </div>
 
         {socialLinks.length > 0 && (

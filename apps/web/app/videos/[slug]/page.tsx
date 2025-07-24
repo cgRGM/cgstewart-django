@@ -1,6 +1,7 @@
 import { api } from '@/lib/api';
 import { Video } from '@/lib/types';
 import { notFound } from 'next/navigation';
+import { Metadata } from 'next';
 import Link from 'next/link';
 import { Button } from '@workspace/ui/components/button';
 import { ArrowLeft } from 'lucide-react';
@@ -27,6 +28,35 @@ function getYouTubeEmbedUrl(url: string): string | null {
   }
 
   return videoId ? `https://www.youtube.com/embed/${videoId}` : null;
+}
+
+// Generate dynamic metadata for SEO
+export async function generateMetadata({ params }: VideoPageProps): Promise<Metadata> {
+  const { slug } = await params;
+  
+  try {
+    const video = await api.getVideoBySlug(slug);
+    return {
+      title: `${video.title} by CG Stewart`,
+      description: video.description || 'A video by CG Stewart',
+      openGraph: {
+        title: `${video.title} by CG Stewart`,
+        description: video.description || 'A video by CG Stewart',
+        type: 'article',
+        modifiedTime: video.updated_at,
+      },
+      twitter: {
+        card: 'summary_large_image',
+        title: `${video.title} by CG Stewart`,
+        description: video.description || 'A video by CG Stewart',
+      },
+    };
+  } catch (error) {
+    return {
+      title: 'Video Not Found | CG Stewart',
+      description: 'The requested video could not be found.',
+    };
+  }
 }
 
 export async function generateStaticParams() {

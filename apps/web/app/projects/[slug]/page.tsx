@@ -1,6 +1,7 @@
 import { api } from "@/lib/api";
 import { Project } from "@/lib/types";
 import { notFound } from "next/navigation";
+import { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import { Button } from "@workspace/ui/components/button";
@@ -11,6 +12,37 @@ type ProjectPageProps = {
     slug: string;
   };
 };
+
+// Generate dynamic metadata for SEO
+export async function generateMetadata({ params }: ProjectPageProps): Promise<Metadata> {
+  const { slug } = await params;
+  
+  try {
+    const project = await api.getProjectBySlug(slug);
+    return {
+      title: `${project.title} by CG Stewart`,
+      description: project.description || 'A project by CG Stewart',
+      openGraph: {
+        title: `${project.title} by CG Stewart`,
+        description: project.description || 'A project by CG Stewart',
+        type: 'article',
+        images: project.image_url ? [{ url: project.image_url }] : [],
+        modifiedTime: project.updated_at,
+      },
+      twitter: {
+        card: 'summary_large_image',
+        title: `${project.title} by CG Stewart`,
+        description: project.description || 'A project by CG Stewart',
+        images: project.image_url ? [project.image_url] : [],
+      },
+    };
+  } catch (error) {
+    return {
+      title: 'Project Not Found | CG Stewart',
+      description: 'The requested project could not be found.',
+    };
+  }
+}
 
 export async function generateStaticParams() {
   try {

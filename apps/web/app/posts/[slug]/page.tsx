@@ -1,6 +1,7 @@
 import { api } from '@/lib/api';
 import { Post } from '@/lib/types';
 import { notFound } from 'next/navigation';
+import { Metadata } from 'next';
 import Image from 'next/image';
 import Link from 'next/link';
 import { Button } from '@workspace/ui/components/button';
@@ -11,6 +12,38 @@ type PostPageProps = {
     slug: string;
   };
 };
+
+// Generate dynamic metadata for SEO
+export async function generateMetadata({ params }: PostPageProps): Promise<Metadata> {
+  const { slug } = await params;
+  
+  try {
+    const post = await api.getPostBySlug(slug);
+    return {
+      title: `${post.title} by CG Stewart`,
+      description: post.excerpt || 'A blog post by CG Stewart',
+      openGraph: {
+        title: `${post.title} by CG Stewart`,
+        description: post.excerpt || 'A blog post by CG Stewart',
+        type: 'article',
+        images: post.image_url ? [{ url: post.image_url }] : [],
+        publishedTime: post.date_published,
+        modifiedTime: post.updated_at,
+      },
+      twitter: {
+        card: 'summary_large_image',
+        title: `${post.title} by CG Stewart`,
+        description: post.excerpt || 'A blog post by CG Stewart',
+        images: post.image_url ? [post.image_url] : [],
+      },
+    };
+  } catch (error) {
+    return {
+      title: 'Post Not Found | CG Stewart',
+      description: 'The requested post could not be found.',
+    };
+  }
+}
 
 // This function helps Next.js know which slugs to pre-render at build time.
 export async function generateStaticParams() {

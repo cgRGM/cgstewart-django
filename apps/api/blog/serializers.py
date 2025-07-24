@@ -1,6 +1,5 @@
 from rest_framework import serializers
 from .models import Bio, Post, Video, Project
-from .utils import generate_signed_url
 
 
 class BioSerializer(serializers.ModelSerializer):
@@ -15,12 +14,12 @@ class BioSerializer(serializers.ModelSerializer):
         ]
     
     def get_image_url(self, obj):
-        """Generate signed URL for image"""
-        return generate_signed_url(obj.image) if obj.image else None
+        """Get public URL for image"""
+        return obj.image.url if obj.image else None
     
     def get_resume_url(self, obj):
-        """Generate signed URL for resume"""
-        return generate_signed_url(obj.resume) if obj.resume else None
+        """Get public URL for resume"""
+        return obj.resume.url if obj.resume else None
 
 
 class PostSerializer(serializers.ModelSerializer):
@@ -35,8 +34,8 @@ class PostSerializer(serializers.ModelSerializer):
         ]
     
     def get_image_url(self, obj):
-        """Generate signed URL for image"""
-        return generate_signed_url(obj.image) if obj.image else None
+        """Get public URL for image"""
+        return obj.image.url if obj.image else None
 
 
 class PostListSerializer(serializers.ModelSerializer):
@@ -52,8 +51,8 @@ class PostListSerializer(serializers.ModelSerializer):
         ]
     
     def get_image_url(self, obj):
-        """Generate signed URL for image"""
-        return generate_signed_url(obj.image) if obj.image else None
+        """Get public URL for image"""
+        return obj.image.url if obj.image else None
 
 
 class VideoSerializer(serializers.ModelSerializer):
@@ -84,8 +83,8 @@ class ProjectSerializer(serializers.ModelSerializer):
         return []
     
     def get_image_url(self, obj):
-        """Generate signed URL for image"""
-        return generate_signed_url(obj.image) if obj.image else None
+        """Get public URL for image"""
+        return obj.image.url if obj.image else None
 
 
 class ProjectListSerializer(serializers.ModelSerializer):
@@ -107,5 +106,5 @@ class ProjectListSerializer(serializers.ModelSerializer):
         return []
     
     def get_image_url(self, obj):
-        """Generate signed URL for image"""
-        return generate_signed_url(obj.image) if obj.image else None
+        """Get public URL for image"""
+        return obj.image.url if obj.image else None

@@ -84,9 +84,7 @@ export default function ProjectsList() {
           </CardHeader>
 
           <CardContent className="space-y-4">
-            <p className="text-muted-foreground line-clamp-3">
-              {project.description}
-            </p>
+            <p className=" line-clamp-3">{project.description}</p>
 
             <div className="flex flex-wrap gap-1">
               {project.stack_list.map((tech) => (
@@ -124,7 +122,7 @@ export default function ProjectsList() {
               )}
 
               <Button size="sm" asChild>
-                <Link href={`/projects/${project.slug}`}>Details</Link>
+                <Link href={`/projects/${project.slug}`}>Learn More</Link>
               </Button>
             </div>
           </CardContent>

@@ -1,0 +1,10 @@
+{
+  "name": "api",
+  "version": "0.0.1",
+  "private": true,
+  "scripts": {
+    "dev": "uv run python manage.py runserver 8000",
+    "build": "echo 'Django build complete'",
+    "lint": "echo 'Django lint complete'"
+  }
+}
