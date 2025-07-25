@@ -8,9 +8,9 @@ import { Button } from '@workspace/ui/components/button';
 import { ArrowLeft } from 'lucide-react';
 
 type PostPageProps = {
-  params: {
+  params: Promise<{
     slug: string;
-  };
+  }>;
 };
 
 // Generate dynamic metadata for SEO

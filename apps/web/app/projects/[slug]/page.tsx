@@ -8,9 +8,9 @@ import { Button } from "@workspace/ui/components/button";
 import { ArrowLeft, ExternalLink } from "lucide-react";
 
 type ProjectPageProps = {
-  params: {
+  params: Promise<{
     slug: string;
-  };
+  }>;
 };
 
 // Generate dynamic metadata for SEO

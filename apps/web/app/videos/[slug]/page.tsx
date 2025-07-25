@@ -7,9 +7,9 @@ import { Button } from '@workspace/ui/components/button';
 import { ArrowLeft } from 'lucide-react';
 
 type VideoPageProps = {
-  params: {
+  params: Promise<{
     slug: string;
-  };
+  }>;
 };
 
 // Helper function to convert a YouTube URL to an embeddable URL

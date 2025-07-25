@@ -13,6 +13,11 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 from pathlib import Path
 from decouple import config
 import os
+from dotenv import load_dotenv
+import dj_database_url
+
+# Load environment variables from .env file
+load_dotenv()
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -20,7 +25,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # Security Settings
 SECRET_KEY = config('SECRET_KEY', default='django-insecure-_h@8w3@runrjwfg6u2b&kk9+qfq-8f4(x0e!mn6zf=iu!$*a@0')
 DEBUG = config('DEBUG', default=True, cast=bool)
-ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='localhost,127.0.0.1').split(',')
+ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='127.0.0.1,.vercel.app').split(',')
 
 
 # Application definition
@@ -71,18 +76,51 @@ TEMPLATES = [
     },
 ]
 
-WSGI_APPLICATION = 'config.wsgi.application'
+WSGI_APPLICATION = 'config.wsgi.app'
 
 
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+# Check for Neon database configuration first
+PGHOST = config('PGHOST', default=None)
+DATABASE_URL = config('DATABASE_URL', default=None)
+
+if PGHOST or DATABASE_URL:
+    # Use Neon serverless database configuration
+    if DATABASE_URL:
+        # Use DATABASE_URL if provided (recommended for Neon)
+        DATABASES = {
+            'default': dj_database_url.parse(DATABASE_URL, conn_max_age=0)
+        }
+    else:
+        # Use individual environment variables
+        DATABASES = {
+            'default': {
+                'ENGINE': 'django.db.backends.postgresql',
+                'NAME': config('PGDATABASE'),
+                'USER': config('PGUSER'),
+                'PASSWORD': config('PGPASSWORD'),
+                'HOST': config('PGHOST'),
+                'PORT': config('PGPORT', default=5432, cast=int),
+                'OPTIONS': {
+                    'sslmode': 'require',
+                },
+                'DISABLE_SERVER_SIDE_CURSORS': True,
+            }
+        }
+    
+    # Neon-specific connection settings
+    DATABASES['default']['CONN_MAX_AGE'] = 0  # Close connections after each request
+    DATABASES['default']['CONN_HEALTH_CHECKS'] = True  # Enable connection health checks
+else:
+    # Use SQLite for local development
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': BASE_DIR / 'db.sqlite3',
+        }
     }
-}
 
 
 # Password validation
@@ -165,8 +203,26 @@ AWS_QUERYSTRING_AUTH = False  # Use public URLs instead of signed URLs
 AWS_QUERYSTRING_EXPIRE = 3600  # Signed URLs expire in 1 hour
 
 # Storage Settings
-if AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY and AWS_STORAGE_BUCKET_NAME:
-    # Use S3 for media files if AWS credentials are provided
+# Check for Pulumi-provided static bucket name (for AWS deployment)
+STATIC_BUCKET_NAME = config('STATIC_BUCKET_NAME', default='')
+
+if STATIC_BUCKET_NAME:
+    # Use S3 for static and media files when deployed via Pulumi
+    AWS_STORAGE_BUCKET_NAME = STATIC_BUCKET_NAME
+    AWS_S3_CUSTOM_DOMAIN = f'{STATIC_BUCKET_NAME}.s3.amazonaws.com'
+    
+    STORAGES = {
+        "default": {
+            "BACKEND": "storages.backends.s3boto3.S3Boto3Storage",
+        },
+        "staticfiles": {
+            "BACKEND": "storages.backends.s3boto3.S3StaticStorage",
+        },
+    }
+    STATIC_URL = f'https://{AWS_S3_CUSTOM_DOMAIN}/static/'
+    MEDIA_URL = f'https://{AWS_S3_CUSTOM_DOMAIN}/media/'
+elif AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY and AWS_STORAGE_BUCKET_NAME:
+    # Use S3 for media files if AWS credentials are provided (existing setup)
     STORAGES = {
         "default": {
             "BACKEND": "storages.backends.s3boto3.S3Boto3Storage",
