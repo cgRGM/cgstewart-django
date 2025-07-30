@@ -539,7 +539,7 @@ def create_ecs_infrastructure(roles, networking, dynamodb_tables, django_admin_n
         }
     )
     
-    # ALB Listener
+    # ALB Listener (HTTP for now, HTTPS can be added later with custom domain)
     listener = aws.lb.Listener(
         f"{project_name}-listener",
         load_balancer_arn=alb.arn,
@@ -550,7 +550,11 @@ def create_ecs_infrastructure(roles, networking, dynamodb_tables, django_admin_n
                 type="forward",
                 target_group_arn=target_group.arn
             )
-        ]
+        ],
+        tags={
+            "Environment": environment,
+            "Project": project_name
+        }
     )
     
     # ECS Service

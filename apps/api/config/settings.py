@@ -25,6 +25,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # Security Settings
 SECRET_KEY = config('SECRET_KEY', default='django-insecure-_h@8w3@runrjwfg6u2b&kk9+qfq-8f4(x0e!mn6zf=iu!$*a@0')
 DEBUG = config('DEBUG', default=True, cast=bool)
+
 # Allow specific hosts for ECS deployment including load balancer DNS
 ALLOWED_HOSTS = [
     'localhost',
@@ -33,6 +34,47 @@ ALLOWED_HOSTS = [
     '10.0.1.121',  # Internal VPC IP from logs
     '10.0.2.52',   # Internal VPC IP from logs
     '*'  # Allow all other hosts for flexibility
+]
+
+# Security Headers
+SECURE_BROWSER_XSS_FILTER = True
+SECURE_CONTENT_TYPE_NOSNIFF = True
+X_FRAME_OPTIONS = 'DENY'
+SECURE_HSTS_SECONDS = 31536000  # 1 year
+SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+SECURE_HSTS_PRELOAD = True
+
+# CORS Configuration for Next.js frontend
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:3000",  # Next.js dev server
+    "https://cgstewart.dev",  # Production frontend (update with your domain)
+    "https://www.cgstewart.dev",
+]
+
+CORS_ALLOW_CREDENTIALS = True
+CORS_ALLOW_ALL_ORIGINS = False  # Set to True only for development
+
+# Allow specific headers for API requests
+CORS_ALLOW_HEADERS = [
+    'accept',
+    'accept-encoding',
+    'authorization',
+    'content-type',
+    'dnt',
+    'origin',
+    'user-agent',
+    'x-csrftoken',
+    'x-requested-with',
+]
+
+# Allow specific methods
+CORS_ALLOW_METHODS = [
+    'DELETE',
+    'GET',
+    'OPTIONS',
+    'PATCH',
+    'POST',
+    'PUT',
 ]
 
 # Application definition
@@ -150,15 +192,20 @@ REST_FRAMEWORK = {
     ],
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
     'PAGE_SIZE': 20,
+    'DEFAULT_THROTTLE_CLASSES': [
+        'rest_framework.throttling.AnonRateThrottle',
+        'rest_framework.throttling.UserRateThrottle'
+    ],
+    'DEFAULT_THROTTLE_RATES': {
+        'anon': '100/hour',  # Anonymous users: 100 requests per hour
+        'user': '1000/hour',  # Authenticated users: 1000 requests per hour
+    },
+    'DEFAULT_VERSIONING_CLASS': 'rest_framework.versioning.URLPathVersioning',
+    'DEFAULT_VERSION': 'v1',
+    'ALLOWED_VERSIONS': ['v1'],
 }
 
-# CORS Settings
-CORS_ALLOWED_ORIGINS = [
-    "http://localhost:3000",  # Next.js dev server
-    "http://127.0.0.1:3000",
-]
-
-CORS_ALLOW_CREDENTIALS = True
+# Note: CORS settings are configured above in the security section
 
 # AWS S3 Settings
 AWS_ACCESS_KEY_ID = config('AWS_ACCESS_KEY_ID', default='')
