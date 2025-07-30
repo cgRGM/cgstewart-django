@@ -1,0 +1,4 @@
+encryptionsalt: v1:xxRuJFQadlY=:v1:xJjLMtx/4OphqZme:zPL5TfzvYgy0YEYPYJshitIT5ElPaA==
+config:
+  cgstewart-portfolio-backend:s3_bucket_name: cgstewart-portfolio
+  cgstewart-portfolio-backend:environment: production

@@ -25,8 +25,15 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # Security Settings
 SECRET_KEY = config('SECRET_KEY', default='django-insecure-_h@8w3@runrjwfg6u2b&kk9+qfq-8f4(x0e!mn6zf=iu!$*a@0')
 DEBUG = config('DEBUG', default=True, cast=bool)
-ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='127.0.0.1,.vercel.app').split(',')
-
+# Allow specific hosts for ECS deployment including load balancer DNS
+ALLOWED_HOSTS = [
+    'localhost',
+    '127.0.0.1',
+    'cgstewart-portfolio-production-1196410477.us-east-1.elb.amazonaws.com',
+    '10.0.1.121',  # Internal VPC IP from logs
+    '10.0.2.52',   # Internal VPC IP from logs
+    '*'  # Allow all other hosts for flexibility
+]
 
 # Application definition
 
@@ -79,48 +86,17 @@ TEMPLATES = [
 WSGI_APPLICATION = 'config.wsgi.app'
 
 
-# Database
+# Database - Using DynamoDB via PynamoDB, minimal Django DB for admin/auth only
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
-# Check for Neon database configuration first
-PGHOST = config('PGHOST', default=None)
-DATABASE_URL = config('DATABASE_URL', default=None)
-
-if PGHOST or DATABASE_URL:
-    # Use Neon serverless database configuration
-    if DATABASE_URL:
-        # Use DATABASE_URL if provided (recommended for Neon)
-        DATABASES = {
-            'default': dj_database_url.parse(DATABASE_URL, conn_max_age=0)
-        }
-    else:
-        # Use individual environment variables
-        DATABASES = {
-            'default': {
-                'ENGINE': 'django.db.backends.postgresql',
-                'NAME': config('PGDATABASE'),
-                'USER': config('PGUSER'),
-                'PASSWORD': config('PGPASSWORD'),
-                'HOST': config('PGHOST'),
-                'PORT': config('PGPORT', default=5432, cast=int),
-                'OPTIONS': {
-                    'sslmode': 'require',
-                },
-                'DISABLE_SERVER_SIDE_CURSORS': True,
-            }
-        }
-    
-    # Neon-specific connection settings
-    DATABASES['default']['CONN_MAX_AGE'] = 0  # Close connections after each request
-    DATABASES['default']['CONN_HEALTH_CHECKS'] = True  # Enable connection health checks
-else:
-    # Use SQLite for local development
-    DATABASES = {
-        'default': {
-            'ENGINE': 'django.db.backends.sqlite3',
-            'NAME': BASE_DIR / 'db.sqlite3',
-        }
+# Minimal SQLite database for Django admin and authentication
+# Main data storage uses DynamoDB via PynamoDB models
+DATABASES = {
+    'default': {
+        'ENGINE': 'django.db.backends.sqlite3',
+        'NAME': BASE_DIR / 'db.sqlite3',
     }
+}
 
 
 # Password validation
