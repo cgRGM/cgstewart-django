@@ -393,8 +393,12 @@ def create_networking():
     }
 
 # ECS Cluster and Service
-def create_ecs_infrastructure(roles, networking, dynamodb_tables, django_admin_name, django_admin_password, django_admin_email):
+def create_ecs_infrastructure(roles, networking, dynamodb_tables, django_admin_name, django_admin_password, django_admin_email, hosted_zone):
     """Create ECS cluster, task definition, and service"""
+    
+    # Domain configuration
+    domain_name = "byoui.com"
+    api_domain = f"api.{domain_name}"
     
     # ECS Cluster
     cluster = aws.ecs.Cluster(
@@ -539,7 +543,7 @@ def create_ecs_infrastructure(roles, networking, dynamodb_tables, django_admin_n
         }
     )
     
-    # SSL Certificate for HTTPS (byoui.com domain)
+    # ACM SSL Certificate for HTTPS
     ssl_cert = aws.acm.Certificate(
         f"{project_name}-ssl-cert",
         domain_name="api.byoui.com",
@@ -549,6 +553,48 @@ def create_ecs_infrastructure(roles, networking, dynamodb_tables, django_admin_n
             "Environment": environment,
             "Project": project_name
         }
+    )
+    
+    # Create DNS validation records in Route 53
+    def create_validation_records(domain_validation_options):
+        validation_records = []
+        for i, dvo in enumerate(domain_validation_options):
+            validation_record = aws.route53.Record(
+                f"{project_name}-ssl-validation-{i}",
+                zone_id=hosted_zone.zone_id,
+                name=dvo["resource_record_name"],
+                type=dvo["resource_record_type"],
+                records=[dvo["resource_record_value"]],
+                ttl=300,
+                opts=pulumi.ResourceOptions(parent=ssl_cert)
+            )
+            validation_records.append(validation_record)
+        return validation_records
+    
+    validation_records = ssl_cert.domain_validation_options.apply(create_validation_records)
+    
+    # Wait for certificate validation to complete
+    ssl_cert_validation = aws.acm.CertificateValidation(
+        f"{project_name}-ssl-cert-validation",
+        certificate_arn=ssl_cert.arn,
+        validation_record_fqdns=validation_records.apply(lambda records: [record.fqdn for record in records]),
+        opts=pulumi.ResourceOptions(parent=ssl_cert)
+    )
+    
+    # Create A record to point api.byoui.com to the load balancer
+    api_dns_record = aws.route53.Record(
+        f"{project_name}-api-dns",
+        zone_id=hosted_zone.zone_id,
+        name=api_domain,
+        type="A",
+        aliases=[
+            aws.route53.RecordAliasArgs(
+                name=alb.dns_name,
+                zone_id=alb.zone_id,
+                evaluate_target_health=True
+            )
+        ],
+        opts=pulumi.ResourceOptions(parent=alb)
     )
     
     # Update existing HTTP Listener to redirect to HTTPS
@@ -573,14 +619,14 @@ def create_ecs_infrastructure(roles, networking, dynamodb_tables, django_admin_n
         }
     )
     
-    # HTTPS Listener
-    listener = aws.lb.Listener(
+    # HTTPS Listener (using validated certificate)
+    https_listener = aws.lb.Listener(
         f"{project_name}-https-listener",
         load_balancer_arn=alb.arn,
         port="443",
         protocol="HTTPS",
         ssl_policy="ELBSecurityPolicy-TLS-1-2-2017-01",
-        certificate_arn=ssl_cert.arn,
+        certificate_arn=ssl_cert_validation.certificate_arn,
         default_actions=[
             aws.lb.ListenerDefaultActionArgs(
                 type="forward",
@@ -590,7 +636,8 @@ def create_ecs_infrastructure(roles, networking, dynamodb_tables, django_admin_n
         tags={
             "Environment": environment,
             "Project": project_name
-        }
+        },
+        opts=pulumi.ResourceOptions(depends_on=[ssl_cert_validation])
     )
     
     # ECS Service
@@ -617,7 +664,7 @@ def create_ecs_infrastructure(roles, networking, dynamodb_tables, django_admin_n
             "Environment": environment,
             "Project": project_name
         },
-        opts=pulumi.ResourceOptions(depends_on=[listener])
+        opts=pulumi.ResourceOptions(depends_on=[https_listener])
     )
     
     return {
@@ -625,7 +672,10 @@ def create_ecs_infrastructure(roles, networking, dynamodb_tables, django_admin_n
         "service": service,
         "alb": alb,
         "task_definition": task_definition,
-        "ssl_cert": ssl_cert
+        "ssl_cert": ssl_cert,
+        "ssl_cert_validation": ssl_cert_validation,
+        "https_listener": https_listener,
+        "http_listener": http_listener
     }
 
 # Main infrastructure setup
@@ -633,11 +683,14 @@ def main():
     # Get S3 bucket name from config
     s3_bucket_name = config.require("s3_bucket_name")
     
+    # Get Route 53 hosted zone for the domain
+    hosted_zone = aws.route53.get_zone(name="byoui.com")
+    
     # Create resources
     dynamodb_tables = create_dynamodb_tables()
     networking = create_networking()
     roles = create_ecs_task_role(dynamodb_tables, s3_bucket_name)
-    ecs_infrastructure = create_ecs_infrastructure(roles, networking, dynamodb_tables, django_admin_name, django_admin_password, django_admin_email)
+    ecs_infrastructure = create_ecs_infrastructure(roles, networking, dynamodb_tables, django_admin_name, django_admin_password, django_admin_email, hosted_zone)
     
     # Export important values
     export("dynamodb_tables", {
@@ -646,16 +699,10 @@ def main():
         "videos": dynamodb_tables["videos"].name,
         "projects": dynamodb_tables["projects"].name
     })
-    
-    export("ecs_cluster_name", ecs_infrastructure["cluster"].name)
-    export("load_balancer_dns", ecs_infrastructure["alb"].dns_name)
-    export("task_execution_role_arn", roles["execution_role"].arn)
-    export("task_role_arn", roles["task_role"].arn)
-    
-    # SSL Certificate information for DNS validation
-    export("ssl_certificate_arn", ecs_infrastructure["ssl_cert"].arn)
-    export("ssl_certificate_domain_validation_options", ecs_infrastructure["ssl_cert"].domain_validation_options)
-    export("api_domain", "api.byoui.com")
+    pulumi.export("api_domain", "api.byoui.com")
+    pulumi.export("ssl_certificate_arn", ecs_infrastructure["ssl_cert_validation"].certificate_arn)
+    pulumi.export("https_endpoint", pulumi.Output.concat("https://", "api.byoui.com"))
+    pulumi.export("route53_zone_id", hosted_zone.zone_id)
 
 if __name__ == "__main__":
     main()
