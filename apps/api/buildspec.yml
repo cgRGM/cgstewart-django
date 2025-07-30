@@ -1,5 +1,9 @@
 version: 0.2
 
+env:
+  variables:
+    IMAGE_REPO_NAME: "cgstewart-portfolio-api"
+
 phases:
   pre_build:
     commands:
@@ -49,6 +53,7 @@ phases:
       - docker push $REPOSITORY_URI:latest
       - docker push $REPOSITORY_URI:$IMAGE_TAG
       - echo Writing image definitions file...
+      - cd $CODEBUILD_SRC_DIR
       - printf '[{"name":"cgstewart-portfolio-container","imageUri":"%s"}]' $REPOSITORY_URI:$IMAGE_TAG > imagedefinitions.json
       - cat imagedefinitions.json
 
