@@ -12,6 +12,11 @@ config = Config()
 project_name = "cgstewart-portfolio"
 environment = config.get("environment") or "production"
 
+# Django admin credentials from Pulumi config
+django_admin_name = config.require("django-admin-name")
+django_admin_password = config.require_secret("django-admin-password")
+django_admin_email = config.require("django-admin-email")
+
 # DynamoDB Tables
 def create_dynamodb_tables():
     """Create DynamoDB tables for the portfolio"""
@@ -388,7 +393,7 @@ def create_networking():
     }
 
 # ECS Cluster and Service
-def create_ecs_infrastructure(roles, networking, dynamodb_tables):
+def create_ecs_infrastructure(roles, networking, dynamodb_tables, django_admin_name, django_admin_password, django_admin_email):
     """Create ECS cluster, task definition, and service"""
     
     # ECS Cluster
@@ -427,7 +432,10 @@ def create_ecs_infrastructure(roles, networking, dynamodb_tables):
             bio_table=dynamodb_tables["bio"].name,
             posts_table=dynamodb_tables["posts"].name,
             videos_table=dynamodb_tables["videos"].name,
-            projects_table=dynamodb_tables["projects"].name
+            projects_table=dynamodb_tables["projects"].name,
+            django_admin_name=django_admin_name,
+            django_admin_password=django_admin_password,
+            django_admin_email=django_admin_email
         ).apply(lambda args: f"""[
             {{
                 "name": "{project_name}-container",
@@ -471,6 +479,18 @@ def create_ecs_infrastructure(roles, networking, dynamodb_tables):
                     {{
                         "name": "DYNAMODB_PROJECTS_TABLE",
                         "value": "{args['projects_table']}"
+                    }},
+                    {{
+                        "name": "DJANGO_ADMIN_NAME",
+                        "value": "{args['django_admin_name']}"
+                    }},
+                    {{
+                        "name": "DJANGO_ADMIN_PASSWORD",
+                        "value": "{args['django_admin_password']}"
+                    }},
+                    {{
+                        "name": "DJANGO_ADMIN_EMAIL",
+                        "value": "{args['django_admin_email']}"
                     }}
                 ]
             }}
@@ -576,7 +596,7 @@ def main():
     dynamodb_tables = create_dynamodb_tables()
     networking = create_networking()
     roles = create_ecs_task_role(dynamodb_tables, s3_bucket_name)
-    ecs_infrastructure = create_ecs_infrastructure(roles, networking, dynamodb_tables)
+    ecs_infrastructure = create_ecs_infrastructure(roles, networking, dynamodb_tables, django_admin_name, django_admin_password, django_admin_email)
     
     # Export important values
     export("dynamodb_tables", {
