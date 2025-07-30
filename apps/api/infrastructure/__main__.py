@@ -539,12 +539,48 @@ def create_ecs_infrastructure(roles, networking, dynamodb_tables, django_admin_n
         }
     )
     
-    # ALB Listener (HTTP for now, HTTPS can be added later with custom domain)
-    listener = aws.lb.Listener(
-        f"{project_name}-listener",
+    # SSL Certificate for HTTPS (byoui.com domain)
+    ssl_cert = aws.acm.Certificate(
+        f"{project_name}-ssl-cert",
+        domain_name="api.byoui.com",
+        subject_alternative_names=["*.byoui.com"],
+        validation_method="DNS",
+        tags={
+            "Environment": environment,
+            "Project": project_name
+        }
+    )
+    
+    # Update existing HTTP Listener to redirect to HTTPS
+    http_listener = aws.lb.Listener(
+        f"{project_name}-listener",  # Use same name as existing listener
         load_balancer_arn=alb.arn,
         port="80",
         protocol="HTTP",
+        default_actions=[
+            aws.lb.ListenerDefaultActionArgs(
+                type="redirect",
+                redirect=aws.lb.ListenerDefaultActionRedirectArgs(
+                    port="443",
+                    protocol="HTTPS",
+                    status_code="HTTP_301"
+                )
+            )
+        ],
+        tags={
+            "Environment": environment,
+            "Project": project_name
+        }
+    )
+    
+    # HTTPS Listener
+    listener = aws.lb.Listener(
+        f"{project_name}-https-listener",
+        load_balancer_arn=alb.arn,
+        port="443",
+        protocol="HTTPS",
+        ssl_policy="ELBSecurityPolicy-TLS-1-2-2017-01",
+        certificate_arn=ssl_cert.arn,
         default_actions=[
             aws.lb.ListenerDefaultActionArgs(
                 type="forward",
@@ -588,7 +624,8 @@ def create_ecs_infrastructure(roles, networking, dynamodb_tables, django_admin_n
         "cluster": cluster,
         "service": service,
         "alb": alb,
-        "task_definition": task_definition
+        "task_definition": task_definition,
+        "ssl_cert": ssl_cert
     }
 
 # Main infrastructure setup
@@ -614,6 +651,11 @@ def main():
     export("load_balancer_dns", ecs_infrastructure["alb"].dns_name)
     export("task_execution_role_arn", roles["execution_role"].arn)
     export("task_role_arn", roles["task_role"].arn)
+    
+    # SSL Certificate information for DNS validation
+    export("ssl_certificate_arn", ecs_infrastructure["ssl_cert"].arn)
+    export("ssl_certificate_domain_validation_options", ecs_infrastructure["ssl_cert"].domain_validation_options)
+    export("api_domain", "api.byoui.com")
 
 if __name__ == "__main__":
     main()

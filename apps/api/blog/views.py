@@ -1,8 +1,11 @@
 from rest_framework import generics, status
 from rest_framework.response import Response
 from rest_framework.decorators import api_view
+from rest_framework.views import APIView
 from django.shortcuts import get_object_or_404
-from .models import Bio, Post, Video, Project
+from django.http import Http404
+from pynamodb.exceptions import DoesNotExist
+from .pynamo_models import Bio, Post, Video, Project
 from .serializers import (
     BioSerializer, PostSerializer, PostListSerializer,
     VideoSerializer, ProjectSerializer, ProjectListSerializer
@@ -10,70 +13,157 @@ from .serializers import (
 
 
 # Bio Views
-class BioDetailView(generics.RetrieveAPIView):
-    """Get the author's bio"""
-    serializer_class = BioSerializer
+class BioDetailView(APIView):
+    """Get the author's bio from DynamoDB"""
     
-    def get_object(self):
-        return Bio.objects.first()  # Get the single bio instance
+    def get(self, request):
+        try:
+            # Get the single bio instance using fixed ID
+            bio = Bio.get('author_bio')
+            serializer = BioSerializer(bio)
+            return Response(serializer.data)
+        except DoesNotExist:
+            return Response(
+                {'error': 'Bio not found'}, 
+                status=status.HTTP_404_NOT_FOUND
+            )
 
 
 # Post Views
-class PostListView(generics.ListAPIView):
-    """List all published posts"""
-    serializer_class = PostListSerializer
+class PostListView(APIView):
+    """List all published posts from DynamoDB"""
     
-    def get_queryset(self):
-        queryset = Post.objects.filter(is_published=True)
-        tag = self.request.query_params.get('tag', None)
-        if tag:
-            queryset = queryset.filter(tags=tag)
-        return queryset
+    def get(self, request):
+        try:
+            # Scan for all published posts
+            posts = []
+            for post in Post.scan(Post.is_published == True):
+                posts.append(post)
+            
+            # Filter by tag if provided
+            tag = request.query_params.get('tag', None)
+            if tag:
+                posts = [post for post in posts if tag in post.tags]
+            
+            # Sort by date_published (newest first)
+            posts.sort(key=lambda x: x.date_published, reverse=True)
+            
+            serializer = PostListSerializer(posts, many=True)
+            return Response(serializer.data)
+        except Exception as e:
+            return Response(
+                {'error': f'Error fetching posts: {str(e)}'}, 
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
 
-class PostDetailView(generics.RetrieveAPIView):
-    """Get a specific post by slug"""
-    serializer_class = PostSerializer
-    lookup_field = 'slug'
+class PostDetailView(APIView):
+    """Get a specific post by slug from DynamoDB"""
     
-    def get_queryset(self):
-        return Post.objects.filter(is_published=True)
+    def get(self, request, slug):
+        try:
+            # Scan for post with matching slug and is_published=True
+            for post in Post.scan((Post.slug == slug) & (Post.is_published == True)):
+                serializer = PostSerializer(post)
+                return Response(serializer.data)
+            
+            return Response(
+                {'error': 'Post not found'}, 
+                status=status.HTTP_404_NOT_FOUND
+            )
+        except Exception as e:
+            return Response(
+                {'error': f'Error fetching post: {str(e)}'}, 
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
 
 # Video Views
-class VideoListView(generics.ListAPIView):
-    """List all published videos"""
-    serializer_class = VideoSerializer
+class VideoListView(APIView):
+    """List all published videos from DynamoDB"""
     
-    def get_queryset(self):
-        return Video.objects.filter(is_published=True)
+    def get(self, request):
+        try:
+            # Scan for all published videos
+            videos = []
+            for video in Video.scan(Video.is_published == True):
+                videos.append(video)
+            
+            # Sort by created_at (newest first)
+            videos.sort(key=lambda x: x.created_at, reverse=True)
+            
+            serializer = VideoSerializer(videos, many=True)
+            return Response(serializer.data)
+        except Exception as e:
+            return Response(
+                {'error': f'Error fetching videos: {str(e)}'}, 
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
 
-class VideoDetailView(generics.RetrieveAPIView):
-    """Get a specific video by slug"""
-    serializer_class = VideoSerializer
-    lookup_field = 'slug'
+class VideoDetailView(APIView):
+    """Get a specific video by slug from DynamoDB"""
     
-    def get_queryset(self):
-        return Video.objects.filter(is_published=True)
+    def get(self, request, slug):
+        try:
+            # Scan for video with matching slug and is_published=True
+            for video in Video.scan((Video.slug == slug) & (Video.is_published == True)):
+                serializer = VideoSerializer(video)
+                return Response(serializer.data)
+            
+            return Response(
+                {'error': 'Video not found'}, 
+                status=status.HTTP_404_NOT_FOUND
+            )
+        except Exception as e:
+            return Response(
+                {'error': f'Error fetching video: {str(e)}'}, 
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
 
 # Project Views
-class ProjectListView(generics.ListAPIView):
-    """List all published projects"""
-    serializer_class = ProjectListSerializer
+class ProjectListView(APIView):
+    """List all published projects from DynamoDB"""
     
-    def get_queryset(self):
-        return Project.objects.filter(is_published=True)
+    def get(self, request):
+        try:
+            # Scan for all published projects
+            projects = []
+            for project in Project.scan(Project.is_published == True):
+                projects.append(project)
+            
+            # Sort by created_at (newest first)
+            projects.sort(key=lambda x: x.created_at, reverse=True)
+            
+            serializer = ProjectListSerializer(projects, many=True)
+            return Response(serializer.data)
+        except Exception as e:
+            return Response(
+                {'error': f'Error fetching projects: {str(e)}'}, 
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
 
-class ProjectDetailView(generics.RetrieveAPIView):
-    """Get a specific project by slug"""
-    serializer_class = ProjectSerializer
-    lookup_field = 'slug'
+class ProjectDetailView(APIView):
+    """Get a specific project by slug from DynamoDB"""
     
-    def get_queryset(self):
-        return Project.objects.filter(is_published=True)
+    def get(self, request, slug):
+        try:
+            # Scan for project with matching slug and is_published=True
+            for project in Project.scan((Project.slug == slug) & (Project.is_published == True)):
+                serializer = ProjectSerializer(project)
+                return Response(serializer.data)
+            
+            return Response(
+                {'error': 'Project not found'}, 
+                status=status.HTTP_404_NOT_FOUND
+            )
+        except Exception as e:
+            return Response(
+                {'error': f'Error fetching project: {str(e)}'}, 
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
 
 # API Overview
