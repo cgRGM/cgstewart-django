@@ -6,6 +6,7 @@ Creates DynamoDB tables, IAM roles, and ECS deployment resources
 import pulumi
 import pulumi_aws as aws
 from pulumi import Config, export
+import time
 
 # Configuration
 config = Config()
@@ -494,7 +495,7 @@ def create_ecs_infrastructure(roles, networking, dynamodb_tables, django_admin_n
                     }},
                     {{
                         "name": "DJANGO_ADMIN_EMAIL",
-                        "value": "{args['django_admin_email']}"
+                        "value": "{django_admin_email}"
                     }}
                 ]
             }}
