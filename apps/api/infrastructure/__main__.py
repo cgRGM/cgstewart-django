@@ -778,7 +778,7 @@ def main():
     
     # CodePipeline policy
     codepipeline_policy = aws.iam.RolePolicy(
-        f"{project_name}-codepipeline-policy-v2",
+        f"{project_name}-codepipeline-policy-v3",
         role=codepipeline_role.id,
         policy=pulumi.Output.all(
             pipeline_bucket_arn=pipeline_bucket.arn,
@@ -820,14 +820,7 @@ def main():
                 {
                     "Effect": "Allow",
                     "Action": [
-                        "ecs:UpdateService",
-                        "ecs:DescribeServices",
-                        "ecs:DescribeTaskDefinition",
-                        "ecs:RegisterTaskDefinition",
-                        "ecs:DescribeClusters",
-                        "ecs:ListServices",
-                        "ecs:ListTasks",
-                        "ecs:DescribeTasks"
+                        "ecs:*"
                     ],
                     "Resource": "*"
                 },
@@ -836,10 +829,12 @@ def main():
                     "Action": [
                         "iam:PassRole"
                     ],
-                    "Resource": [
-                        args['task_role_arn'],
-                        args['execution_role_arn']
-                    ]
+                    "Resource": "*",
+                    "Condition": {
+                        "StringEquals": {
+                            "iam:PassedToService": "ecs-tasks.amazonaws.com"
+                        }
+                    }
                 }
             ]
         }))
