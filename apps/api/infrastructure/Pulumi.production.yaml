@@ -1,9 +1,0 @@
-encryptionsalt: v1:xxRuJFQadlY=:v1:xJjLMtx/4OphqZme:zPL5TfzvYgy0YEYPYJshitIT5ElPaA==
-config:
-  cgstewart-portfolio-backend:s3_bucket_name: cgstewart-portfolio
-  cgstewart-portfolio-backend:environment: production
-  cgstewart-portfolio-backend:django-admin-name: cgstewart
-  cgstewart-portfolio-backend:django-admin-password:
-    secure: v1:qPFuO9RewsGe1Hrt:/ZcO9UpTR0tFcqken5h7t3IGkwEM9FRXOsKXSyHjR++m
-  cgstewart-portfolio-backend:django-admin-email: cam@cgstewart.dev
-  cgstewart-portfolio-backend:domain_name: byoui.com
