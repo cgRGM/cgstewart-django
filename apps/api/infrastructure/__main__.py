@@ -782,7 +782,9 @@ def main():
         role=codepipeline_role.id,
         policy=pulumi.Output.all(
             pipeline_bucket_arn=pipeline_bucket.arn,
-            ecr_repo_arn=ecr_repository.arn
+            ecr_repo_arn=ecr_repository.arn,
+            task_role_arn=roles["task_role"].arn,
+            execution_role_arn=roles["execution_role"].arn
         ).apply(lambda args: json.dumps({
             "Version": "2012-10-17",
             "Statement": [
@@ -821,7 +823,11 @@ def main():
                         "ecs:UpdateService",
                         "ecs:DescribeServices",
                         "ecs:DescribeTaskDefinition",
-                        "ecs:RegisterTaskDefinition"
+                        "ecs:RegisterTaskDefinition",
+                        "ecs:DescribeClusters",
+                        "ecs:ListServices",
+                        "ecs:ListTasks",
+                        "ecs:DescribeTasks"
                     ],
                     "Resource": "*"
                 },
@@ -830,7 +836,10 @@ def main():
                     "Action": [
                         "iam:PassRole"
                     ],
-                    "Resource": "*"
+                    "Resource": [
+                        args['task_role_arn'],
+                        args['execution_role_arn']
+                    ]
                 }
             ]
         }))
