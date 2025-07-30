@@ -241,22 +241,16 @@ if STATIC_BUCKET_NAME:
     # Use S3 for static and media files when deployed via Pulumi
     AWS_STORAGE_BUCKET_NAME = STATIC_BUCKET_NAME
     AWS_S3_CUSTOM_DOMAIN = f'{STATIC_BUCKET_NAME}.s3.amazonaws.com'
-    AWS_S3_OBJECT_PARAMETERS = {
-        'CacheControl': 'max-age=86400',
-    }
-    AWS_LOCATION = 'static'
     
     STORAGES = {
         "default": {
             "BACKEND": "storages.backends.s3boto3.S3Boto3Storage",
         },
         "staticfiles": {
-            "BACKEND": "storages.backends.s3boto3.S3StaticStorage",
-            "OPTIONS": {
-                "location": "static",
-            },
+            "BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage",
         },
     }
+    # Serve static files directly from S3 URLs
     STATIC_URL = f'https://{AWS_S3_CUSTOM_DOMAIN}/static/'
     MEDIA_URL = f'https://{AWS_S3_CUSTOM_DOMAIN}/media/'
 elif AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY and AWS_STORAGE_BUCKET_NAME:

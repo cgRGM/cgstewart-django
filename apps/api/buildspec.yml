@@ -1,0 +1,62 @@
+version: 0.2
+
+phases:
+  pre_build:
+    commands:
+      - echo Logging in to Amazon ECR...
+      - aws ecr get-login-password --region $AWS_DEFAULT_REGION | docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com
+      - REPOSITORY_URI=$AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$IMAGE_REPO_NAME
+      - COMMIT_HASH=$(echo $CODEBUILD_RESOLVED_SOURCE_VERSION | cut -c 1-7)
+      - IMAGE_TAG=${COMMIT_HASH:=latest}
+      - echo Build started on `date`
+      - echo Building the Docker image...
+  build:
+    commands:
+      - cd apps/api
+      - echo Build started on `date`
+      - echo Building the Docker image...
+      - docker build -t $IMAGE_REPO_NAME:$IMAGE_TAG .
+      - docker tag $IMAGE_REPO_NAME:$IMAGE_TAG $REPOSITORY_URI:$IMAGE_TAG
+      - docker tag $IMAGE_REPO_NAME:$IMAGE_TAG $REPOSITORY_URI:latest
+      - echo Build completed on `date`
+      - echo Running Django migrations and admin user creation...
+      - |
+        # Create a temporary container to run Django commands
+        docker run --rm \
+          -e BIO_TABLE_NAME=$BIO_TABLE_NAME \
+          -e POSTS_TABLE_NAME=$POSTS_TABLE_NAME \
+          -e VIDEOS_TABLE_NAME=$VIDEOS_TABLE_NAME \
+          -e PROJECTS_TABLE_NAME=$PROJECTS_TABLE_NAME \
+          -e STATIC_BUCKET_NAME=$STATIC_BUCKET_NAME \
+          -e DJANGO_ADMIN_USERNAME=$DJANGO_ADMIN_USERNAME \
+          -e DJANGO_ADMIN_EMAIL=$DJANGO_ADMIN_EMAIL \
+          -e DJANGO_ADMIN_PASSWORD=$DJANGO_ADMIN_PASSWORD \
+          -e AWS_DEFAULT_REGION=$AWS_DEFAULT_REGION \
+          $IMAGE_REPO_NAME:$IMAGE_TAG \
+          sh -c "
+            echo 'Running Django migrations...' &&
+            uv run python manage.py migrate --noinput &&
+            echo 'Creating admin user...' &&
+            uv run python manage.py create_admin_user &&
+            echo 'Collecting static files to S3...' &&
+            uv run python manage.py collectstatic --noinput &&
+            echo 'Django setup completed successfully!'
+          "
+  post_build:
+    commands:
+      - echo Build completed on `date`
+      - echo Pushing the Docker images...
+      - docker push $REPOSITORY_URI:latest
+      - docker push $REPOSITORY_URI:$IMAGE_TAG
+      - echo Writing image definitions file...
+      - printf '[{"name":"cgstewart-portfolio-container","imageUri":"%s"}]' $REPOSITORY_URI:$IMAGE_TAG > imagedefinitions.json
+      - cat imagedefinitions.json
+
+artifacts:
+  files:
+    - imagedefinitions.json
+  name: BuildArtifact
+
+cache:
+  paths:
+    - '/root/.cache/docker/**/*'

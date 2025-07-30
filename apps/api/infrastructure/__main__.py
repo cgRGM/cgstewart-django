@@ -5,7 +5,8 @@ Creates DynamoDB tables, IAM roles, and ECS deployment resources
 
 import pulumi
 import pulumi_aws as aws
-from pulumi import Config, export
+from pulumi import Config, Output, export
+import json
 import time
 
 # Configuration
@@ -394,7 +395,7 @@ def create_networking():
     }
 
 # ECS Cluster and Service
-def create_ecs_infrastructure(roles, networking, dynamodb_tables, django_admin_name, django_admin_password, django_admin_email, hosted_zone, s3_bucket_name):
+def create_ecs_infrastructure(roles, networking, dynamodb_tables, django_admin_name, django_admin_password, django_admin_email, hosted_zone, s3_bucket_name, ecr_repository):
     """Create ECS cluster, task definition, and service"""
     
     # Domain configuration
@@ -441,11 +442,12 @@ def create_ecs_infrastructure(roles, networking, dynamodb_tables, django_admin_n
             django_admin_name=django_admin_name,
             django_admin_password=django_admin_password,
             django_admin_email=django_admin_email,
-            s3_bucket_name=s3_bucket_name
+            s3_bucket_name=s3_bucket_name,
+            ecr_repository_url=ecr_repository.repository_url
         ).apply(lambda args: f"""[
             {{
                 "name": "{project_name}-container",
-                "image": "992382618631.dkr.ecr.us-east-1.amazonaws.com/cgstewart-portfolio:latest",
+                "image": "{args['ecr_repository_url']}:latest",
                 "portMappings": [
                     {{
                         "containerPort": 8000,
@@ -696,7 +698,383 @@ def main():
     dynamodb_tables = create_dynamodb_tables()
     networking = create_networking()
     roles = create_ecs_task_role(dynamodb_tables, s3_bucket_name)
-    ecs_infrastructure = create_ecs_infrastructure(roles, networking, dynamodb_tables, django_admin_name, django_admin_password, django_admin_email, hosted_zone, s3_bucket_name)
+    # =============================================================================
+    # ECR Repository for Container Images
+    # =============================================================================
+    
+    # ECR repository for storing Docker images
+    ecr_repository = aws.ecr.Repository(
+        f"{project_name}-ecr-repo",
+        name=f"{project_name}-api",
+        image_tag_mutability="MUTABLE",
+        image_scanning_configuration=aws.ecr.RepositoryImageScanningConfigurationArgs(
+            scan_on_push=True
+        ),
+        force_delete=True
+    )
+    
+    # ECR lifecycle policy to manage old images
+    aws.ecr.LifecyclePolicy(
+        f"{project_name}-ecr-lifecycle",
+        repository=ecr_repository.name,
+        policy="""{
+            "rules": [
+                {
+                    "rulePriority": 1,
+                    "description": "Keep last 10 images",
+                    "selection": {
+                        "tagStatus": "any",
+                        "countType": "imageCountMoreThan",
+                        "countNumber": 10
+                    },
+                    "action": {
+                        "type": "expire"
+                    }
+                }
+            ]
+        }"""
+    )
+    
+    # Create ECS infrastructure with ECR repository
+    ecs_infrastructure = create_ecs_infrastructure(roles, networking, dynamodb_tables, django_admin_name, django_admin_password, django_admin_email, hosted_zone, s3_bucket_name, ecr_repository)
+    
+    # =============================================================================
+    # CI/CD Pipeline with CodePipeline
+    # =============================================================================
+    
+    # S3 bucket for CodePipeline artifacts
+    pipeline_bucket = aws.s3.Bucket(
+        f"{project_name}-pipeline-artifacts",
+        bucket=f"{project_name}-pipeline-artifacts-{pulumi.get_stack()}",
+        force_destroy=True
+    )
+    
+    # Block public access to pipeline bucket
+    aws.s3.BucketPublicAccessBlock(
+        f"{project_name}-pipeline-bucket-pab",
+        bucket=pipeline_bucket.id,
+        block_public_acls=True,
+        block_public_policy=True,
+        ignore_public_acls=True,
+        restrict_public_buckets=True
+    )
+    
+    # CodePipeline service role
+    codepipeline_role = aws.iam.Role(
+        f"{project_name}-codepipeline-role",
+        assume_role_policy="""{
+            "Version": "2012-10-17",
+            "Statement": [
+                {
+                    "Action": "sts:AssumeRole",
+                    "Effect": "Allow",
+                    "Principal": {
+                        "Service": "codepipeline.amazonaws.com"
+                    }
+                }
+            ]
+        }"""
+    )
+    
+    # CodePipeline policy
+    codepipeline_policy = aws.iam.RolePolicy(
+        f"{project_name}-codepipeline-policy",
+        role=codepipeline_role.id,
+        policy=pulumi.Output.all(
+            pipeline_bucket_arn=pipeline_bucket.arn,
+            ecr_repo_arn=ecr_repository.arn
+        ).apply(lambda args: json.dumps({
+            "Version": "2012-10-17",
+            "Statement": [
+                {
+                    "Effect": "Allow",
+                    "Action": [
+                        "s3:GetObject",
+                        "s3:GetObjectVersion",
+                        "s3:GetBucketVersioning",
+                        "s3:PutObjectAcl",
+                        "s3:PutObject"
+                    ],
+                    "Resource": [
+                        args['pipeline_bucket_arn'],
+                        f"{args['pipeline_bucket_arn']}/*"
+                    ]
+                },
+                {
+                    "Effect": "Allow",
+                    "Action": [
+                        "codestar-connections:UseConnection"
+                    ],
+                    "Resource": "*"
+                },
+                {
+                    "Effect": "Allow",
+                    "Action": [
+                        "codebuild:BatchGetBuilds",
+                        "codebuild:StartBuild"
+                    ],
+                    "Resource": "*"
+                },
+                {
+                    "Effect": "Allow",
+                    "Action": [
+                        "ecs:UpdateService",
+                        "ecs:DescribeServices",
+                        "ecs:DescribeTaskDefinition",
+                        "ecs:RegisterTaskDefinition"
+                    ],
+                    "Resource": "*"
+                },
+                {
+                    "Effect": "Allow",
+                    "Action": [
+                        "iam:PassRole"
+                    ],
+                    "Resource": "*"
+                }
+            ]
+        }))
+    )
+    
+    # CodeBuild service role
+    codebuild_role = aws.iam.Role(
+        f"{project_name}-codebuild-role",
+        assume_role_policy="""{
+            "Version": "2012-10-17",
+            "Statement": [
+                {
+                    "Action": "sts:AssumeRole",
+                    "Effect": "Allow",
+                    "Principal": {
+                        "Service": "codebuild.amazonaws.com"
+                    }
+                }
+            ]
+        }"""
+    )
+    
+    # CodeBuild policy
+    codebuild_policy = aws.iam.RolePolicy(
+        f"{project_name}-codebuild-policy",
+        role=codebuild_role.id,
+        policy=pulumi.Output.all(
+            pipeline_bucket_arn=pipeline_bucket.arn,
+            ecr_repo_arn=ecr_repository.arn,
+            s3_bucket_arn=f"arn:aws:s3:::{s3_bucket_name}",
+            bio_table_arn=dynamodb_tables["bio"].arn,
+            posts_table_arn=dynamodb_tables["posts"].arn,
+            videos_table_arn=dynamodb_tables["videos"].arn,
+            projects_table_arn=dynamodb_tables["projects"].arn
+        ).apply(lambda args: json.dumps({
+            "Version": "2012-10-17",
+            "Statement": [
+                {
+                    "Effect": "Allow",
+                    "Action": [
+                        "logs:CreateLogGroup",
+                        "logs:CreateLogStream",
+                        "logs:PutLogEvents"
+                    ],
+                    "Resource": "arn:aws:logs:*:*:*"
+                },
+                {
+                    "Effect": "Allow",
+                    "Action": [
+                        "s3:GetObject",
+                        "s3:GetObjectVersion",
+                        "s3:PutObject"
+                    ],
+                    "Resource": [
+                        args['pipeline_bucket_arn'],
+                        f"{args['pipeline_bucket_arn']}/*",
+                        args['s3_bucket_arn'],
+                        f"{args['s3_bucket_arn']}/*"
+                    ]
+                },
+                {
+                    "Effect": "Allow",
+                    "Action": [
+                        "ecr:BatchCheckLayerAvailability",
+                        "ecr:GetDownloadUrlForLayer",
+                        "ecr:BatchGetImage",
+                        "ecr:GetAuthorizationToken",
+                        "ecr:PutImage",
+                        "ecr:InitiateLayerUpload",
+                        "ecr:UploadLayerPart",
+                        "ecr:CompleteLayerUpload"
+                    ],
+                    "Resource": "*"
+                },
+                {
+                    "Effect": "Allow",
+                    "Action": [
+                        "dynamodb:GetItem",
+                        "dynamodb:PutItem",
+                        "dynamodb:UpdateItem",
+                        "dynamodb:DeleteItem",
+                        "dynamodb:Query",
+                        "dynamodb:Scan",
+                        "dynamodb:BatchGetItem",
+                        "dynamodb:BatchWriteItem"
+                    ],
+                    "Resource": [
+                        args['bio_table_arn'],
+                        args['posts_table_arn'],
+                        args['videos_table_arn'],
+                        args['projects_table_arn']
+                    ]
+                }
+            ]
+        }))
+    )
+    
+    # CodeBuild project
+    codebuild_project = aws.codebuild.Project(
+        f"{project_name}-build",
+        name=f"{project_name}-build",
+        service_role=codebuild_role.arn,
+        artifacts=aws.codebuild.ProjectArtifactsArgs(
+            type="CODEPIPELINE"
+        ),
+        environment=aws.codebuild.ProjectEnvironmentArgs(
+            compute_type="BUILD_GENERAL1_MEDIUM",
+            image="aws/codebuild/amazonlinux2-x86_64-standard:5.0",
+            type="LINUX_CONTAINER",
+            privileged_mode=True,  # Required for Docker builds
+            environment_variables=[
+                aws.codebuild.ProjectEnvironmentEnvironmentVariableArgs(
+                    name="AWS_DEFAULT_REGION",
+                    value="us-east-1"
+                ),
+                aws.codebuild.ProjectEnvironmentEnvironmentVariableArgs(
+                    name="AWS_ACCOUNT_ID",
+                    value=aws.get_caller_identity().account_id
+                ),
+                aws.codebuild.ProjectEnvironmentEnvironmentVariableArgs(
+                    name="IMAGE_REPO_NAME",
+                    value=ecr_repository.name
+                ),
+                aws.codebuild.ProjectEnvironmentEnvironmentVariableArgs(
+                    name="IMAGE_TAG",
+                    value="latest"
+                ),
+                aws.codebuild.ProjectEnvironmentEnvironmentVariableArgs(
+                    name="STATIC_BUCKET_NAME",
+                    value=s3_bucket_name
+                ),
+                aws.codebuild.ProjectEnvironmentEnvironmentVariableArgs(
+                    name="DJANGO_ADMIN_USERNAME",
+                    value=django_admin_name
+                ),
+                aws.codebuild.ProjectEnvironmentEnvironmentVariableArgs(
+                    name="DJANGO_ADMIN_EMAIL",
+                    value=django_admin_email
+                ),
+                aws.codebuild.ProjectEnvironmentEnvironmentVariableArgs(
+                    name="DJANGO_ADMIN_PASSWORD",
+                    value=django_admin_password
+                ),
+                aws.codebuild.ProjectEnvironmentEnvironmentVariableArgs(
+                    name="BIO_TABLE_NAME",
+                    value=dynamodb_tables["bio"].name
+                ),
+                aws.codebuild.ProjectEnvironmentEnvironmentVariableArgs(
+                    name="POSTS_TABLE_NAME",
+                    value=dynamodb_tables["posts"].name
+                ),
+                aws.codebuild.ProjectEnvironmentEnvironmentVariableArgs(
+                    name="VIDEOS_TABLE_NAME",
+                    value=dynamodb_tables["videos"].name
+                ),
+                aws.codebuild.ProjectEnvironmentEnvironmentVariableArgs(
+                    name="PROJECTS_TABLE_NAME",
+                    value=dynamodb_tables["projects"].name
+                )
+            ]
+        ),
+        source=aws.codebuild.ProjectSourceArgs(
+            type="CODEPIPELINE",
+            buildspec="apps/api/buildspec.yml"
+        )
+    )
+    
+    # GitHub connection (this needs to be manually authorized in AWS Console)
+    github_connection = aws.codestarconnections.Connection(
+        f"{project_name}-gh-conn",
+        name=f"{project_name}-gh-conn",
+        provider_type="GitHub"
+    )
+    
+    # CodePipeline
+    pipeline = aws.codepipeline.Pipeline(
+        f"{project_name}-pipeline",
+        name=f"{project_name}-pipeline",
+        role_arn=codepipeline_role.arn,
+        artifact_stores=[
+            aws.codepipeline.PipelineArtifactStoreArgs(
+                location=pipeline_bucket.bucket,
+                type="S3"
+            )
+        ],
+        stages=[
+            # Source stage
+            aws.codepipeline.PipelineStageArgs(
+                name="Source",
+                actions=[
+                    aws.codepipeline.PipelineStageActionArgs(
+                        name="Source",
+                        category="Source",
+                        owner="AWS",
+                        provider="CodeStarSourceConnection",
+                        version="1",
+                        output_artifacts=["source_output"],
+                        configuration={
+                            "ConnectionArn": github_connection.arn,
+                            "FullRepositoryId": "cgRGM/cgstewart-django",
+                            "BranchName": "main"
+                        }
+                    )
+                ]
+            ),
+            # Build stage
+            aws.codepipeline.PipelineStageArgs(
+                name="Build",
+                actions=[
+                    aws.codepipeline.PipelineStageActionArgs(
+                        name="Build",
+                        category="Build",
+                        owner="AWS",
+                        provider="CodeBuild",
+                        version="1",
+                        input_artifacts=["source_output"],
+                        output_artifacts=["build_output"],
+                        configuration={
+                            "ProjectName": codebuild_project.name
+                        }
+                    )
+                ]
+            ),
+            # Deploy stage
+            aws.codepipeline.PipelineStageArgs(
+                name="Deploy",
+                actions=[
+                    aws.codepipeline.PipelineStageActionArgs(
+                        name="Deploy",
+                        category="Deploy",
+                        owner="AWS",
+                        provider="ECS",
+                        version="1",
+                        input_artifacts=["build_output"],
+                        configuration={
+                            "ClusterName": ecs_infrastructure["cluster"].name,
+                            "ServiceName": ecs_infrastructure["service"].name,
+                            "FileName": "imagedefinitions.json"
+                        }
+                    )
+                ]
+            )
+        ]
+    )
     
     # Export important values
     export("dynamodb_tables", {
@@ -713,6 +1091,12 @@ def main():
     pulumi.export("ssl_certificate_arn", ecs_infrastructure["ssl_cert_validation"].certificate_arn)
     pulumi.export("https_endpoint", pulumi.Output.concat("https://", api_domain))
     pulumi.export("route53_zone_id", hosted_zone.zone_id)
+    
+    # CI/CD Pipeline exports
+    pulumi.export("pipeline_name", pipeline.name)
+    pulumi.export("github_connection_arn", github_connection.arn)
+    pulumi.export("codebuild_project_name", codebuild_project.name)
+    pulumi.export("pipeline_bucket", pipeline_bucket.bucket)
 
 if __name__ == "__main__":
     main()

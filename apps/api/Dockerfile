@@ -28,6 +28,9 @@ RUN uv sync --frozen
 # Copy project
 COPY . .
 
+# Make startup script executable
+RUN chmod +x start.sh
+
 # Create a non-root user
 RUN adduser --disabled-password --gecos '' appuser && chown -R appuser /app
 USER appuser
@@ -42,6 +45,5 @@ EXPOSE 8000
 HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \
     CMD curl -f http://localhost:8000/admin/ || exit 1
 
-# Run the application
-# Install gunicorn in your dependencies, then:
-CMD ["uv", "run", "gunicorn", "config.wsgi:application", "--bind", "0.0.0.0:8000", "--workers", "2"]
+# Run the startup script
+CMD ["./start.sh"]
