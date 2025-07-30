@@ -43,4 +43,5 @@ HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \
     CMD curl -f http://localhost:8000/admin/ || exit 1
 
 # Run the application
-CMD ["uv", "run", "python", "manage.py", "runserver", "0.0.0.0:8000"]
+# Install gunicorn in your dependencies, then:
+CMD ["uv", "run", "gunicorn", "config.wsgi:application", "--bind", "0.0.0.0:8000", "--workers", "2"]
