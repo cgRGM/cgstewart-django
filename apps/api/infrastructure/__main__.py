@@ -394,7 +394,7 @@ def create_networking():
     }
 
 # ECS Cluster and Service
-def create_ecs_infrastructure(roles, networking, dynamodb_tables, django_admin_name, django_admin_password, django_admin_email, hosted_zone):
+def create_ecs_infrastructure(roles, networking, dynamodb_tables, django_admin_name, django_admin_password, django_admin_email, hosted_zone, s3_bucket_name):
     """Create ECS cluster, task definition, and service"""
     
     # Domain configuration
@@ -440,7 +440,8 @@ def create_ecs_infrastructure(roles, networking, dynamodb_tables, django_admin_n
             projects_table=dynamodb_tables["projects"].name,
             django_admin_name=django_admin_name,
             django_admin_password=django_admin_password,
-            django_admin_email=django_admin_email
+            django_admin_email=django_admin_email,
+            s3_bucket_name=s3_bucket_name
         ).apply(lambda args: f"""[
             {{
                 "name": "{project_name}-container",
@@ -495,7 +496,11 @@ def create_ecs_infrastructure(roles, networking, dynamodb_tables, django_admin_n
                     }},
                     {{
                         "name": "DJANGO_ADMIN_EMAIL",
-                        "value": "{django_admin_email}"
+                        "value": "{args['django_admin_email']}"
+                    }},
+                    {{
+                        "name": "STATIC_BUCKET_NAME",
+                        "value": "{args['s3_bucket_name']}"
                     }}
                 ]
             }}
@@ -691,7 +696,7 @@ def main():
     dynamodb_tables = create_dynamodb_tables()
     networking = create_networking()
     roles = create_ecs_task_role(dynamodb_tables, s3_bucket_name)
-    ecs_infrastructure = create_ecs_infrastructure(roles, networking, dynamodb_tables, django_admin_name, django_admin_password, django_admin_email, hosted_zone)
+    ecs_infrastructure = create_ecs_infrastructure(roles, networking, dynamodb_tables, django_admin_name, django_admin_password, django_admin_email, hosted_zone, s3_bucket_name)
     
     # Export important values
     export("dynamodb_tables", {
