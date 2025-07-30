@@ -397,7 +397,7 @@ def create_ecs_infrastructure(roles, networking, dynamodb_tables, django_admin_n
     """Create ECS cluster, task definition, and service"""
     
     # Domain configuration
-    domain_name = "byoui.com"
+    domain_name = config.require("domain_name")
     api_domain = f"api.{domain_name}"
     
     # ECS Cluster
@@ -699,9 +699,13 @@ def main():
         "videos": dynamodb_tables["videos"].name,
         "projects": dynamodb_tables["projects"].name
     })
-    pulumi.export("api_domain", "api.byoui.com")
+    # Get domain configuration
+    domain_name = config.require("domain_name")
+    api_domain = f"api.{domain_name}"
+    
+    pulumi.export("api_domain", api_domain)
     pulumi.export("ssl_certificate_arn", ecs_infrastructure["ssl_cert_validation"].certificate_arn)
-    pulumi.export("https_endpoint", pulumi.Output.concat("https://", "api.byoui.com"))
+    pulumi.export("https_endpoint", pulumi.Output.concat("https://", api_domain))
     pulumi.export("route53_zone_id", hosted_zone.zone_id)
 
 if __name__ == "__main__":

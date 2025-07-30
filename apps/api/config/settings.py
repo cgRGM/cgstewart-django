@@ -31,9 +31,17 @@ ALLOWED_HOSTS = [
     'localhost',
     '127.0.0.1',
     'cgstewart-portfolio-production-1196410477.us-east-1.elb.amazonaws.com',
+    'api.byoui.com',  # Custom domain
     '10.0.1.121',  # Internal VPC IP from logs
     '10.0.2.52',   # Internal VPC IP from logs
     '*'  # Allow all other hosts for flexibility
+]
+
+# CSRF trusted origins for admin interface
+CSRF_TRUSTED_ORIGINS = [
+    'https://api.byoui.com',
+    'http://localhost:8000',
+    'http://127.0.0.1:8000',
 ]
 
 # Security Headers
