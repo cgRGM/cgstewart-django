@@ -778,7 +778,7 @@ def main():
     
     # CodePipeline policy
     codepipeline_policy = aws.iam.RolePolicy(
-        f"{project_name}-codepipeline-policy",
+        f"{project_name}-codepipeline-policy-v2",
         role=codepipeline_role.id,
         policy=pulumi.Output.all(
             pipeline_bucket_arn=pipeline_bucket.arn,
